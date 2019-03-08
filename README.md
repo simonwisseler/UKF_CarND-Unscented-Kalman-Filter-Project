@@ -1,5 +1,5 @@
 -----
-This repo contains a simple implementation of the Unscented Kalman Filter algorithm for state estimation of a moving object built on Udacity's Self-Driving Car Nanodegree Unscented-Kalman-Filter Project.
+This repo contains a simple implementation of the Unscented Kalman Filter algorithm for estimating the state of a moving object. It is built on Udacity's Self-Driving Car Nanodegree Unscented-Kalman-Filter Project.
 
 The description below comes from the original repo (https://github.com/udacity/CarND-Unscented-Kalman-Filter-Project.git).
 
