@@ -1,8 +1,14 @@
+/**
+ * Unscented Kalman Filter as described in
+ * Julier, S., and J. Uhlmann. 1997. A new extension of the Kalman filter to nonlinear systems
+ */
+
 #ifndef UKF_H
 #define UKF_H
 
 #include "Eigen/Dense"
 #include "measurement_package.h"
+
 
 class UKF {
     public:
@@ -40,7 +46,22 @@ class UKF {
         * @param meas_package The measurement at k+1
         */
         void UpdateRadar(MeasurementPackage meas_package);
-
+    
+    
+        Eigen::MatrixXd GenerateAugmentedSigmaPoints();
+    
+    
+        void PredictAugmentedSigmaPoints(MatrixXd Xsig, double dt);
+    
+    
+        void PredictStateMean();
+    
+    
+        void PredictStateCovariance();
+    
+    
+        void NormalizeAngle(VectorXd vector, int idx);
+    
 
         // initially set to false, set to true in first call of ProcessMeasurement
         bool is_initialized_;

@@ -1,3 +1,8 @@
+/**
+ * Unscented Kalman Filter as described in
+ * Julier, S., and J. Uhlmann. 1997. A new extension of the Kalman filter to nonlinear systems
+ */
+
 #include "ukf.h"
 #include "Eigen/Dense"
 
@@ -8,7 +13,7 @@ using namespace std;
 
 
 /**
- * Initializes Unscented Kalman filter
+ * Constructor
  */
 UKF::UKF() {
     // if this is false, laser measurements will be ignored (except during init)
@@ -40,10 +45,10 @@ UKF::UKF() {
     // augmented state dimension
     n_aug_ = n_x_ + 2;
     
-    // sigma point spreading parameter --> heuristic from Julier, S., and J. Uhlmann. 1997. A new extension of the Kalman filter to nonlinear systems
-    lambda_ = 3 - n_x_;
+    // sigma point spreading parameter --> using value 3 is heuristic from Julier, S., and J. Uhlmann. 1997. A new extension of the Kalman filter to nonlinear systems
+    lambda_ = 3 - n_aug_;
     
-    // weights of sigma points
+    // weights of augmented sigma points
     weights_ = VectorXd(2*n_aug_ + 1);
     weights_.fill(0.5/(n_aug_ + lambda_));
     weights_(0) = lambda_/(lambda_ + n_aug_);
@@ -79,7 +84,12 @@ UKF::UKF() {
     
 }
 
+
+/**
+ * Destructor
+ */
 UKF::~UKF() {}
+
 
 void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
     
@@ -95,7 +105,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
             double x = rho * cos(phi);
             double y = rho * sin(phi);
             // best estimate for v as component of velocity normal to rho not captured by radar measurement
-            double v = rho_dot
+            double v = rho_dot;
             x_ << x, y, v, 0, 0;
         }
         previous_timestamp_ = meas_package.timestamp_ ;
@@ -111,16 +121,23 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
     if (meas_package.sensor_type_ == MeasurementPackage::LASER && use_laser_) {
         UpdateLidar(meas_package);
     }
-    else if (meas_package.sensor_type_ == MeasurementPackage::RADAR && user_radar_) {
+    else if (meas_package.sensor_type_ == MeasurementPackage::RADAR && use_radar_) {
         UpdateRadar(meas_package);
+    }
 }
-
+    
 void UKF::Prediction(double delta_t) {
-  /**
-   * TODO: Complete this function! Estimate the object's location. 
-   * Modify the state vector, x_. Predict sigma points, the state, 
-   * and the state covariance matrix.
-   */
+    //generate augmented sigma points
+    MatrixXd Xsig_aug = GenerateAugmentedSigmaPoints();
+
+    // predict augmented sigma points
+    PredictAugmentedSigmaPoints(Xsig_aug, delta_t);
+    
+    //
+    PredictStateMean();
+    
+    //
+    PredictStateCovariance();
 }
 
 void UKF::UpdateLidar(MeasurementPackage meas_package) {
@@ -139,4 +156,106 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
    * covariance, P_.
    * You can also calculate the radar NIS, if desired.
    */
+}
+    
+MatrixXd UKF::GenerateAugmentedSigmaPoints(){
+    //create augmented mean vector
+    VectorXd x_aug = VectorXd(n_aug_);
+    x_aug.head(5) = x_;
+    x_aug(5) = 0;
+    x_aug(6) = 0;
+    
+    // create augmented state covariance
+    MatrixXd P_aug = MatrixXd(n_aug_, n_aug_);
+    P_aug.fill(0.0);
+    P_aug.topLeftCorner(5, 5) = P_;
+    P_aug(5, 5) = std_a_*std_a_;
+    P_aug(6, 6) = std_yawdd_*std_yawdd_;
+    
+    // calculate square root of augmented state covariance
+    MatrixXd L = P_aug.llt().matrixL();
+    
+    // create augmented sigma points
+    MatrixXd Xsig(n_aug_, 2*n_aug_+1);
+    Xsig.col(0) = x_aug;
+    
+    for (unsigned int i = 0; i< n_aug_; i++)
+    {
+        Xsig.col(i + 1) = x_aug + sqrt(lambda_ + n_aug_) * L.col(i);
+        Xsig.col(i + 1 + n_aug_) = x_aug - sqrt(lambda_ + n_aug_) * L.col(i);
+    }
+    return Xsig;
+}
+
+
+void UKF::PredictAugmentedSigmaPoints(MatrixXd Xsig, double dt){
+    
+    for (unsigned int i = 0; i < 2 * n_aug_ + 1; i++){
+        //
+        double px = Xsig(0, i);
+        double py = Xsig(1, i);
+        double v  = Xsig(2, i);
+        double yaw = Xsig(3, i);
+        double yawd = Xsig(4, i);
+        double nu_a = Xsig(5, i);
+        double nu_yawdd = Xsig(6, i);
+        
+        //
+        double px_p, py_p;
+        
+        if (fabs(yawd) > 0.001) {
+            px_p = px + v / yawd * (sin(yaw + yawd * dt) - sin(yaw));
+            py_p = py + v / yawd * (cos(yaw) - cos(yaw + yawd * dt));
+        }
+        else {
+            px_p = px + v * dt * cos(yaw);
+            py_p = py + v * dt * sin(yaw);
+        }
+        
+        double v_p = v;
+        double yaw_p = yaw + yawd * dt;
+        double yawd_p = yawd;
+        
+        //
+        px_p += 0.5 * nu_a * dt * dt * cos(yaw);
+        py_p += 0.5 * nu_a * dt * dt * sin(yaw);
+        v_p += v_p + nu_a*dt;
+        yaw_p += 0.5 * nu_yawdd * dt * dt;
+        yawd_p += nu_yawdd * delta_t;
+        
+        //
+        Xsig_pred_(0, i) = px_p;
+        Xsig_pred_(1, i) = py_p;
+        Xsig_pred_(2, i) = v_p;
+        Xsig_pred_(3, i) = yaw_p;
+        Xsig_pred_(4, i) = yawd_p;
+    }
+}
+
+
+void UKF::PredictStateMean(){
+    
+    for (unsigned int i = 0; i < 2 * n_aug_ + 1; i++) {
+        x_.fill(0.0);
+        x_ += weights_(i) * Xsig_pred_.col(i);
+    }
+}
+
+
+void UKF::PredictStateCovariance(){
+    
+    for (unsigned int i = 0; i < 2 * n_aug_ + 1; i++) {
+        VectorXd x_ = Xsig_pred_.col(i) - x_;
+        
+        NormalizeAngle(Xsig_pred_, 3);
+        
+        P_.fill(0.0);
+        P_ = P_ + weights_(i) * x_diff * x_diff.transpose();
+    }
+}
+
+
+void UKF::NormalizeAngle(VectorXd vector, int idx){
+    while (vector(idx) > M_PI) vector(idx) -= 2. * M_PI;
+    while (vector(idx) < -M_PI) vector(idx) += 2. * M_PI;
 }
