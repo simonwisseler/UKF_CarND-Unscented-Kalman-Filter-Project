@@ -17,30 +17,35 @@ class UKF {
         */
         UKF();
 
+    
         /**
         * Destructor
         */
         virtual ~UKF();
 
+    
         /**
         * ProcessMeasurement
         * @param meas_package The latest measurement data of either radar or laser
         */
         void ProcessMeasurement(MeasurementPackage meas_package);
 
+    
         /**
-        * Prediction Predicts sigma points, the state, and the state covariance
+        * Prediction Predicts augmented sigma points, the state, and the state covariance
         * matrix
         * @param delta_t Time between k and k+1 in s
         */
         void Prediction(double delta_t);
 
+    
         /**
         * Updates the state and the state covariance matrix using a laser measurement
         * @param meas_package The measurement at k+1
         */
         void UpdateLidar(MeasurementPackage meas_package);
 
+    
         /**
         * Updates the state and the state covariance matrix using a radar measurement
         * @param meas_package The measurement at k+1
@@ -48,14 +53,29 @@ class UKF {
         void UpdateRadar(MeasurementPackage meas_package);
     
     
+        /**
+         * GenerateAugmentedSigmaPoints
+         * @param
+         * @return MatrixXd with augmented sigma points
+         */
         Eigen::MatrixXd GenerateAugmentedSigmaPoints();
     
     
+        /**
+         * PredictAugmentedSigmaPoints
+         * @param Xsig MatrixXd with augmented sigma points
+         * @param dt Time between k and k+1 in s
+         */
         void PredictAugmentedSigmaPoints(Eigen::MatrixXd Xsig, double dt);
 
+    
+        /**
+         * NormalizeAngle normalize angle if it is > |2*pi|
+         * @param vector Vector containing relevant angle value at position idx
+         * @param idx Position at which vector contains relevant angle value
+         */
         void NormalizeAngle(Eigen::VectorXd vector, int idx);
     
-
         // initially set to false, set to true in first call of ProcessMeasurement
         bool is_initialized_;
 
@@ -121,7 +141,6 @@ class UKF {
     
         // current normalized innovation squared (NIS) of radar
         double NIS_radar_;
-    
 };
 
 #endif  // UKF_H
