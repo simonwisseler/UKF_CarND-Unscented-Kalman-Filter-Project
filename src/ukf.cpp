@@ -221,7 +221,7 @@ void UKF::PredictAugmentedSigmaPoints(MatrixXd Xsig, double dt){
         py_p += 0.5 * nu_a * dt * dt * sin(yaw);
         v_p += v_p + nu_a*dt;
         yaw_p += 0.5 * nu_yawdd * dt * dt;
-        yawd_p += nu_yawdd * delta_t;
+        yawd_p += nu_yawdd * dt;
         
         //
         Xsig_pred_(0, i) = px_p;
@@ -245,7 +245,7 @@ void UKF::PredictStateMean(){
 void UKF::PredictStateCovariance(){
     
     for (unsigned int i = 0; i < 2 * n_aug_ + 1; i++) {
-        VectorXd x_ = Xsig_pred_.col(i) - x_;
+        VectorXd x_diff = Xsig_pred_.col(i) - x_;
         
         NormalizeAngle(Xsig_pred_, 3);
         

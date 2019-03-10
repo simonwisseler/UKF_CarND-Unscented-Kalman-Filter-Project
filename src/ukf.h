@@ -51,7 +51,7 @@ class UKF {
         Eigen::MatrixXd GenerateAugmentedSigmaPoints();
     
     
-        void PredictAugmentedSigmaPoints(MatrixXd Xsig, double dt);
+    void PredictAugmentedSigmaPoints(Eigen::MatrixXd Xsig, double dt);
     
     
         void PredictStateMean();
@@ -60,7 +60,7 @@ class UKF {
         void PredictStateCovariance();
     
     
-        void NormalizeAngle(VectorXd vector, int idx);
+        void NormalizeAngle(Eigen::VectorXd vector, int idx);
     
 
         // initially set to false, set to true in first call of ProcessMeasurement
