@@ -125,7 +125,8 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
         UpdateRadar(meas_package);
     }
 }
-    
+
+
 void UKF::Prediction(double delta_t) {
     //generate augmented sigma points
     MatrixXd Xsig_aug = GenerateAugmentedSigmaPoints();
@@ -133,31 +134,93 @@ void UKF::Prediction(double delta_t) {
     // predict augmented sigma points
     PredictAugmentedSigmaPoints(Xsig_aug, delta_t);
     
-    //
-    PredictStateMean();
+    // predict state mean
+    for (unsigned int i = 0; i < 2 * n_aug_ + 1; i++) {
+        x_.fill(0.0);
+        x_ += weights_(i) * Xsig_pred_.col(i);
+    }
     
-    //
-    PredictStateCovariance();
+    // predict state covariance
+    for (unsigned int i = 0; i < 2 * n_aug_ + 1; i++) {
+        VectorXd x_res = Xsig_pred_.col(i) - x_;
+        
+        NormalizeAngle(x_res, 3); //
+        
+        P_.fill(0.0);
+        P_ = P_ + weights_(i) * x_res * x_res.transpose();
+    }
 }
 
+
 void UKF::UpdateLidar(MeasurementPackage meas_package) {
-  /**
-   * TODO: Complete this function! Use lidar data to update the belief 
-   * about the object's position. Modify the state vector, x_, and 
-   * covariance, P_.
-   * You can also calculate the lidar NIS, if desired.
-   */
+    //
+    VectorXd z = meas_package.raw_measurements_;
+    
+    //
+    int n_z = 2;
+    
+    //
+    MatrixXd Zsig = MatrixXd(n_z, 2 * n_aug_ + 1);
+    Zsig.row(0) = Xsig_pred_.row(0); // px
+    Zsig.row(1) = Xsig_pred_.row(1); // py
+    
+    //
+    VectorXd z_pred = VectorXd(n_z);
+    z_pred.fill(0.0);
+    
+    for (unsigned int i = 0; i < 2 * n_aug_ + 1; i++) {
+        z_pred = z_pred + weights_(i) * Zsig.col(i);
+    }
+    
+    //
+    MatrixXd S = MatrixXd(n_z, n_z);
+    S.fill(0.0);
+    
+    for (unsigned int i = 0; i < 2 * n_aug_ + 1; i++) {
+        VectorXd z_diff = Zsig.col(i) - z_pred;
+        S = S + weights_(i) * z_diff * z_diff.transpose();
+    }
+    
+    //
+    S = S + R_laser_;
+    
+    //cross correlation
+    MatrixXd Tc = MatrixXd(n_x_, n_z);
+    Tc.fill(0.0);
+    
+    for (int i = 0; i < 2 * n_aug_ + 1; i++) {
+        //
+        VectorXd z_res = Zsig.col(i) - z_pred;
+        
+        // state difference
+        VectorXd x_res = Xsig_pred_.col(i) - x_;
+        
+        Tc = Tc + weights_(i) * x_res * z_res.transpose();
+    }
+    
+    //
+    MatrixXd K = Tc * S.inverse();
+    
+    //
+    VectorXd innovation = z - z_pred;
+    
+    //
+    x_ += K * innovation;
+    P_ -= K * S * K.transpose();
+    
+    //
+    NIS_laser_ = innovation.transpose() * S.inverse() * innovation;
 }
 
 void UKF::UpdateRadar(MeasurementPackage meas_package) {
-  /**
-   * TODO: Complete this function! Use radar data to update the belief 
-   * about the object's position. Modify the state vector, x_, and 
-   * covariance, P_.
-   * You can also calculate the radar NIS, if desired.
-   */
+    /**
+     * TODO: Complete this function! Use radar data to update the belief
+     * about the object's position. Modify the state vector, x_, and
+     * covariance, P_.
+     * You can also calculate the radar NIS, if desired.
+     */
 }
-    
+
 MatrixXd UKF::GenerateAugmentedSigmaPoints(){
     //create augmented mean vector
     VectorXd x_aug = VectorXd(n_aug_);
@@ -232,30 +295,9 @@ void UKF::PredictAugmentedSigmaPoints(MatrixXd Xsig, double dt){
     }
 }
 
-
-void UKF::PredictStateMean(){
-    
-    for (unsigned int i = 0; i < 2 * n_aug_ + 1; i++) {
-        x_.fill(0.0);
-        x_ += weights_(i) * Xsig_pred_.col(i);
-    }
-}
-
-
-void UKF::PredictStateCovariance(){
-    
-    for (unsigned int i = 0; i < 2 * n_aug_ + 1; i++) {
-        VectorXd x_diff = Xsig_pred_.col(i) - x_;
-        
-        NormalizeAngle(Xsig_pred_, 3);
-        
-        P_.fill(0.0);
-        P_ = P_ + weights_(i) * x_diff * x_diff.transpose();
-    }
-}
-
-
 void UKF::NormalizeAngle(VectorXd vector, int idx){
     while (vector(idx) > M_PI) vector(idx) -= 2. * M_PI;
     while (vector(idx) < -M_PI) vector(idx) += 2. * M_PI;
 }
+
+

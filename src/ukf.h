@@ -51,15 +51,8 @@ class UKF {
         Eigen::MatrixXd GenerateAugmentedSigmaPoints();
     
     
-    void PredictAugmentedSigmaPoints(Eigen::MatrixXd Xsig, double dt);
-    
-    
-        void PredictStateMean();
-    
-    
-        void PredictStateCovariance();
-    
-    
+        void PredictAugmentedSigmaPoints(Eigen::MatrixXd Xsig, double dt);
+
         void NormalizeAngle(Eigen::VectorXd vector, int idx);
     
 
