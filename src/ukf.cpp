@@ -74,14 +74,14 @@ UKF::UKF() {
 
     // laser measurement noise covariance matrix
     R_laser_ = MatrixXd(2, 2);
-    R_laser_ << std_laspx_*std_laspx_,0,
-                0,std_laspy_*std_laspy_;
+    R_laser_ << std_laspx_ * std_laspx_, 0,
+                0, std_laspy_ * std_laspy_;
     
     // radar measurement noise covariance matrix
     R_radar_ = MatrixXd(3, 3);
-    R_radar_ << std_radr_*std_radr_, 0, 0,
-                0, std_radphi_*std_radphi_, 0,
-                0, 0,std_radrd_*std_radrd_;
+    R_radar_ << std_radr_ * std_radr_, 0, 0,
+                0, std_radphi_ * std_radphi_, 0,
+                0, 0, std_radrd_ * std_radrd_;
     
 }
 
@@ -121,13 +121,9 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
     
     if (meas_package.sensor_type_ == MeasurementPackage::LASER && use_laser_) {
         UpdateLidar(meas_package);
-        cout << x_ << endl;
-        cout << endl;
     }
     else if (meas_package.sensor_type_ == MeasurementPackage::RADAR && use_radar_) {
         UpdateRadar(meas_package);
-        cout << x_ << endl;
-        cout << endl;
     }
 }
 
@@ -140,18 +136,18 @@ void UKF::Prediction(double delta_t) {
     PredictAugmentedSigmaPoints(Xsig_aug, delta_t);
     
     // predict state mean
+    x_.fill(0.0);
     for (unsigned int i = 0; i < 2 * n_aug_ + 1; i++) {
-        x_.fill(0.0);
         x_ = x_ + weights_(i) * Xsig_pred_.col(i);
     }
     
     // predict state covariance
+    P_.fill(0.0);
     for (unsigned int i = 0; i < 2 * n_aug_ + 1; i++) {
         VectorXd x_res = Xsig_pred_.col(i) - x_;
         
-        NormalizeAngle(x_res, 3); //
+        NormalizeAngle(x_res, 3);
         
-        P_.fill(0.0);
         P_ = P_ + weights_(i) * x_res * x_res.transpose();
     }
 }
